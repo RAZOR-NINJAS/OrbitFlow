@@ -1,4 +1,5 @@
 use crate::model::{NodeType, Universe};
+use crate::physics::{PhysicsConfig, PhysicsEngine};
 use crate::ui::theme::Theme;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -15,6 +16,7 @@ impl InspectorRenderer {
         frame: &mut Frame,
         area: Rect,
         universe: &Universe,
+        config: &PhysicsConfig,
         selected_id: Option<usize>,
         is_focused: bool,
         theme: &Theme,
@@ -33,7 +35,7 @@ impl InspectorRenderer {
                 BorderType::Rounded
             })
             .border_style(Style::default().fg(border_color))
-            .title(" 📝 SCRATCHPAD & INSPECTOR ")
+            .title(" 🛰 FLIGHT COMPUTER & ASTRODYNAMICS TELEMETRY ")
             .title_style(Style::default().fg(theme.accent).add_modifier(Modifier::BOLD));
 
         let inner_area = block.inner(area);
@@ -43,24 +45,28 @@ impl InspectorRenderer {
             let empty_text = vec![
                 Line::from(""),
                 Line::from(Span::styled(
-                    "  🌌 No Celestial Body Selected",
+                    "  📡 SENSORS SCANNING DEEP SPACE...",
                     Style::default().fg(theme.text_muted).add_modifier(Modifier::BOLD),
                 )),
                 Line::from(""),
                 Line::from(Span::styled(
-                    "  • Press [Tab] to cycle through nodes",
+                    "  • [Tab] Select orbiting celestial body",
                     Style::default().fg(theme.text_muted),
                 )),
                 Line::from(Span::styled(
-                    "  • Click any planet on the canvas",
+                    "  • [Click & Drag] Impart manual orbital velocity",
                     Style::default().fg(theme.text_muted),
                 )),
                 Line::from(Span::styled(
-                    "  • Press [n] to birth a new celestial idea",
+                    "  • [W / S] Fire Prograde / Retrograde thrusters",
                     Style::default().fg(theme.text_muted),
                 )),
                 Line::from(Span::styled(
-                    "  • Press [1-3] to switch galaxy presets",
+                    "  • [b] Birth a Supermassive Singularity / Black Hole",
+                    Style::default().fg(theme.text_muted),
+                )),
+                Line::from(Span::styled(
+                    "  • [g] Toggle Einstein Warped Spacetime Grid",
                     Style::default().fg(theme.text_muted),
                 )),
             ];
@@ -75,18 +81,19 @@ impl InspectorRenderer {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(4), // Header & Type
-                Constraint::Length(3), // Physics Stats
-                Constraint::Length(2), // Tags
-                Constraint::Min(6),    // Notes / Scratchpad
-                Constraint::Length(4), // Connected Orbiters
-                Constraint::Length(3), // Action bar
+                Constraint::Length(3), // Header & Type
+                Constraint::Length(5), // Astrodynamics Telemetry
+                Constraint::Length(3), // Live Tidal Waveform Oscilloscope
+                Constraint::Min(6),    // Mission Dispatch / Scratchpad Log
+                Constraint::Length(3), // Thruster Controls
             ])
             .split(inner_area);
 
         // 1. Header & Type
         let type_color = match node.node_type {
             NodeType::Star => theme.star,
+            NodeType::Pulsar => theme.pulsar,
+            NodeType::BlackHole => theme.black_hole,
             NodeType::Planet => theme.planet,
             NodeType::Moon => theme.moon,
             NodeType::Asteroid => theme.asteroid,
@@ -95,12 +102,12 @@ impl InspectorRenderer {
         let header_lines = vec![
             Line::from(vec![
                 Span::styled(
-                    format!("[{}] ", node.node_type.display_badge()),
+                    format!("TARGET #{} [{}] ", node.id, node.node_type.display_badge()),
                     Style::default().fg(type_color).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    format!("#{}", node.id),
-                    Style::default().fg(theme.text_muted),
+                    if node.pinned { "⚓ ANCHORED" } else { "🛸 DRIFTING" },
+                    Style::default().fg(if node.pinned { theme.star } else { theme.text_muted }),
                 ),
             ]),
             Line::from(vec![Span::styled(
@@ -112,61 +119,97 @@ impl InspectorRenderer {
         ];
         frame.render_widget(Paragraph::new(header_lines), chunks[0]);
 
-        // 2. Physics properties
-        let speed = (node.vx * node.vx + node.vy * node.vy).sqrt();
-        let stats_lines = vec![
+        // 2. Real Astrodynamics Telemetry
+        let telemetry = PhysicsEngine::compute_telemetry(universe, node.id, config.gravity_g);
+        let telemetry_lines = if let Some(telem) = telemetry {
+            vec![
+                Line::from(vec![
+                    Span::styled("Orbit: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(
+                        format!("{} (e={:.2})  ", telem.orbit_type, telem.eccentricity),
+                        Style::default().fg(theme.selection).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled("Anchor: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(telem.primary_name, Style::default().fg(theme.accent)),
+                ]),
+                Line::from(vec![
+                    Span::styled("Altitude: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(format!("{:.1} AU  ", telem.altitude), Style::default().fg(theme.text_primary)),
+                    Span::styled("Speed: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(format!("{:.2} AU/s  ", telem.speed), Style::default().fg(theme.text_primary)),
+                    Span::styled("Period: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(
+                        if telem.period_sec.is_finite() { format!("{:.1}s", telem.period_sec) } else { "ESC".into() },
+                        Style::default().fg(theme.text_primary),
+                    ),
+                ]),
+                Line::from(vec![
+                    Span::styled("Periapsis: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(format!("{:.1} AU  ", telem.periapsis), Style::default().fg(theme.text_primary)),
+                    Span::styled("Apoapsis: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(
+                        if telem.apoapsis.is_finite() { format!("{:.1} AU", telem.apoapsis) } else { "∞".into() },
+                        Style::default().fg(theme.text_primary),
+                    ),
+                    Span::styled("Mass: ", Style::default().fg(theme.text_muted)),
+                    Span::styled(format!("{:.0}", node.mass), Style::default().fg(theme.text_primary)),
+                ]),
+            ]
+        } else {
+            vec![
+                Line::from(Span::styled("Anchor: PRIMARY COSMIC HUB", Style::default().fg(theme.accent))),
+                Line::from(format!("Coordinates: ({:.1}, {:.1}) | Mass: {:.0}", node.x, node.y, node.mass)),
+            ]
+        };
+
+        let telem_block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(theme.border))
+            .title(" KEPLERIAN ASTRODYNAMICS ");
+        frame.render_widget(Paragraph::new(telemetry_lines).block(telem_block), chunks[1]);
+
+        // 3. Live Gravitational Waveform Oscilloscope
+        let mut waveform = String::new();
+        let wave_chars = [" ", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+        for i in 0..26 {
+            let phase = config.sim_time * 4.0 + (i as f64 * 0.45) + (node.id as f64);
+            let val = ((phase.sin() + (phase * 1.5).cos()) * 0.5 + 0.5).clamp(0.0, 0.99);
+            let idx = (val * (wave_chars.len() as f64)) as usize;
+            waveform.push_str(wave_chars[idx]);
+        }
+        let flux_val = PhysicsEngine::gravitational_potential(universe, node.x, node.y, config.gravity_g);
+        let wave_lines = vec![
             Line::from(vec![
-                Span::styled("Mass: ", Style::default().fg(theme.text_muted)),
-                Span::styled(format!("{:.1}  ", node.mass), Style::default().fg(theme.text_primary)),
-                Span::styled("Speed: ", Style::default().fg(theme.text_muted)),
-                Span::styled(format!("{:.2}  ", speed), Style::default().fg(theme.text_primary)),
-                Span::styled("Pinned: ", Style::default().fg(theme.text_muted)),
-                Span::styled(
-                    if node.pinned { "YES (Anchor) [p]" } else { "NO [p]" },
-                    Style::default().fg(if node.pinned { theme.star } else { theme.text_muted }),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("Coordinates: ", Style::default().fg(theme.text_muted)),
-                Span::styled(
-                    format!("({:.1}, {:.1})", node.x, node.y),
-                    Style::default().fg(theme.text_primary),
-                ),
+                Span::styled("WAVE: ", Style::default().fg(theme.text_muted)),
+                Span::styled(waveform, Style::default().fg(theme.accent)),
+                Span::styled(format!(" {:.1} Φ", flux_val), Style::default().fg(theme.selection)),
             ]),
         ];
-        frame.render_widget(Paragraph::new(stats_lines), chunks[1]);
+        let wave_block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(theme.border))
+            .title(" RELATIVISTIC GRAVITATIONAL FLUX ");
+        frame.render_widget(Paragraph::new(wave_lines).block(wave_block), chunks[2]);
 
-        // 3. Tags
-        let tags_text = if node.tags.is_empty() {
-            vec![Line::from(Span::styled("Tags: (none)", Style::default().fg(theme.text_muted)))]
-        } else {
-            let tags_str = node.tags.join(" ");
-            vec![Line::from(vec![
-                Span::styled("Tags: ", Style::default().fg(theme.text_muted)),
-                Span::styled(tags_str, Style::default().fg(theme.accent)),
-            ])]
-        };
-        frame.render_widget(Paragraph::new(tags_text), chunks[2]);
-
-        // 4. Notes / Markdown Scratchpad
+        // 4. Mission Dispatch / Scratchpad Log
         let note_content = if node.notes.trim().is_empty() {
             vec![Line::from(Span::styled(
-                "  (No scratchpad notes yet. Press 'e' to edit notes)",
+                "  (No mission directives logged. Press 'e' to transmit log)",
                 Style::default().fg(theme.text_muted),
             ))]
         } else {
             node.notes
                 .lines()
                 .map(|line| {
-                    if line.starts_with("# ") {
+                    if line.starts_with('#') {
                         Line::from(Span::styled(
                             line,
                             Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
                         ))
-                    } else if line.starts_with("- ") || line.starts_with("* ") {
+                    } else if line.starts_with('-') || line.starts_with('*') {
                         Line::from(vec![
-                            Span::styled("• ", Style::default().fg(theme.selection)),
-                            Span::styled(&line[2..], Style::default().fg(theme.text_primary)),
+                            Span::styled("◆ ", Style::default().fg(theme.selection)),
+                            Span::styled(&line[1..], Style::default().fg(theme.text_primary)),
                         ])
                     } else {
                         Line::from(Span::styled(line, Style::default().fg(theme.text_primary)))
@@ -178,59 +221,28 @@ impl InspectorRenderer {
         let notes_block = Block::default()
             .borders(Borders::TOP)
             .border_style(Style::default().fg(theme.border))
-            .title(" NOTES ");
+            .title(" MISSION DIRECTIVES // SCRATCHPAD LOG ");
         frame.render_widget(
             Paragraph::new(note_content).block(notes_block).wrap(Wrap { trim: false }),
             chunks[3],
         );
 
-        // 5. Connections
-        let connected_nodes: Vec<String> = universe
-            .connections
-            .iter()
-            .filter_map(|c| {
-                if c.from_id == node.id {
-                    universe.get_node(c.to_id).map(|n| format!("→ {}", n.title))
-                } else if c.to_id == node.id {
-                    universe.get_node(c.from_id).map(|n| format!("← {}", n.title))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let conn_text = if connected_nodes.is_empty() {
-            vec![Line::from(Span::styled("Connections: None (press 'c' to link)", Style::default().fg(theme.text_muted)))]
-        } else {
-            vec![
-                Line::from(Span::styled(
-                    format!("Links ({}):", connected_nodes.len()),
-                    Style::default().fg(theme.text_muted),
-                )),
-                Line::from(Span::styled(
-                    connected_nodes.join(", "),
-                    Style::default().fg(theme.spring_relaxed),
-                )),
-            ]
-        };
-        let conn_block = Block::default()
-            .borders(Borders::TOP)
-            .border_style(Style::default().fg(theme.border));
-        frame.render_widget(Paragraph::new(conn_text).block(conn_block), chunks[4]);
-
-        // 6. Action quick hints
-        let actions = vec![
+        // 5. Orbital Thruster Controls
+        let thruster_line = vec![
             Line::from(vec![
-                Span::styled("[e] ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
-                Span::styled("Edit Note  ", Style::default().fg(theme.text_primary)),
-                Span::styled("[c] ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
-                Span::styled("Connect  ", Style::default().fg(theme.text_primary)),
-                Span::styled("[p] ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
-                Span::styled("Pin  ", Style::default().fg(theme.text_primary)),
-                Span::styled("[d] ", Style::default().fg(theme.spring_tense).add_modifier(Modifier::BOLD)),
-                Span::styled("Delete", Style::default().fg(theme.text_primary)),
+                Span::styled("[W] ", Style::default().fg(theme.selection).add_modifier(Modifier::BOLD)),
+                Span::styled("+Prograde  ", Style::default().fg(theme.text_primary)),
+                Span::styled("[S] ", Style::default().fg(theme.spring_tense).add_modifier(Modifier::BOLD)),
+                Span::styled("-Retrograde  ", Style::default().fg(theme.text_primary)),
+                Span::styled("[A/D] ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+                Span::styled("Radial Steer  ", Style::default().fg(theme.text_primary)),
+                Span::styled("[e] ", Style::default().fg(theme.accent)),
+                Span::styled("Log", Style::default().fg(theme.text_primary)),
             ]),
         ];
-        frame.render_widget(Paragraph::new(actions), chunks[5]);
+        let thruster_block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(theme.border));
+        frame.render_widget(Paragraph::new(thruster_line).block(thruster_block), chunks[4]);
     }
 }

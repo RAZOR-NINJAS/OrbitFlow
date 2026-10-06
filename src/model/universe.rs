@@ -220,4 +220,66 @@ impl Universe {
 
         u
     }
+
+    /// Preset 3: Singularity & Accretion Laboratory
+    pub fn preset_singularity_laboratory() -> Self {
+        let mut u = Self::new();
+
+        // Central Supermassive Black Hole
+        let bh_id = u.add_node("Gargantua Singularity", NodeType::BlackHole, 0.0, 0.0);
+        if let Some(n) = u.get_node_mut(bh_id) {
+            n.notes = "🕳 Supermassive gravitational singularity.\n- Massive spacetime curvature well\n- Schwarzschild radius event horizon\n- Consumes stray debris crossing inside".into();
+            n.tags = vec!["#singularity".into(), "#relativity".into(), "#event-horizon".into()];
+            n.pinned = true;
+        }
+
+        // Companion Pulsar with Relativistic Magnetic Jets
+        let pulsar_id = u.add_node("Pulsar PSR-01", NodeType::Pulsar, -38.0, -18.0);
+        if let Some(n) = u.get_node_mut(pulsar_id) {
+            n.notes = "⚡ High-frequency neutron pulsar emitting twin relativistic beams across deep space.".into();
+            n.tags = vec!["#pulsar".into(), "#jets".into()];
+            n.vx = 0.6;
+            n.vy = -1.3;
+        }
+        u.connect(bh_id, pulsar_id, 42.0);
+
+        // Habitable Planet orbiting safely outside ISCO
+        let world_id = u.add_node("Endurance Hub", NodeType::Planet, 42.0, 16.0);
+        if let Some(n) = u.get_node_mut(world_id) {
+            n.notes = "🪐 Orbital research station positioned in stable relativistic resonance.".into();
+            n.tags = vec!["#research".into(), "#habitable".into()];
+            n.vx = -0.5;
+            n.vy = 1.35;
+        }
+        u.connect(bh_id, world_id, 45.0);
+
+        // Task moon orbiting the research station
+        let probe_id = u.add_node("Deep Survey Probe", NodeType::Moon, 52.0, 24.0);
+        if let Some(n) = u.get_node_mut(probe_id) {
+            n.notes = "Telemetry sensor gathering tidal gravitational wave flux data.".into();
+            n.tags = vec!["#telemetry".into()];
+            n.vx = -0.3;
+            n.vy = 1.1;
+        }
+        u.connect(world_id, probe_id, 12.0);
+
+        // Swarm of accretion disk asteroids
+        for i in 0..8 {
+            let angle = (i as f64) * (std::f64::consts::TAU / 8.0);
+            let r = 24.0 + (i as f64) * 2.0;
+            let ast = u.add_node(
+                format!("Disk Debris #{}", i + 1),
+                NodeType::Asteroid,
+                angle.cos() * r,
+                angle.sin() * r,
+            );
+            if let Some(n) = u.get_node_mut(ast) {
+                let speed = 1.6;
+                n.vx = -angle.sin() * speed;
+                n.vy = angle.cos() * speed;
+            }
+        }
+
+        u
+    }
 }

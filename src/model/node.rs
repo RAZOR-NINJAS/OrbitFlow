@@ -3,16 +3,20 @@ use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeType {
-    Star,     // Massive central anchor thought (e.g. "OrbitFlow Core")
-    Planet,   // Major conceptual domain or module
-    Moon,     // Subtask, detail, or note orbiting a planet
-    Asteroid, // Floating unanchored thought or stray idea
+    Star,      // Radiant anchor thought
+    Pulsar,    // Rapidly pulsating star with relativistic magnetic jets
+    BlackHole, // Gravitational singularity with an event horizon
+    Planet,    // Major conceptual module
+    Moon,      // Subtask / detail bound to a planet
+    Asteroid,  // Free-floating debris / stray idea
 }
 
 impl NodeType {
     pub fn display_badge(&self) -> &'static str {
         match self {
             NodeType::Star => "★ STAR",
+            NodeType::Pulsar => "⚡ PULSAR",
+            NodeType::BlackHole => "🕳 SINGULARITY",
             NodeType::Planet => "● PLANET",
             NodeType::Moon => "◦ MOON",
             NodeType::Asteroid => "· DUST",
@@ -22,6 +26,8 @@ impl NodeType {
     pub fn default_mass(&self) -> f64 {
         match self {
             NodeType::Star => 80.0,
+            NodeType::Pulsar => 120.0,
+            NodeType::BlackHole => 220.0,
             NodeType::Planet => 24.0,
             NodeType::Moon => 8.0,
             NodeType::Asteroid => 3.0,
@@ -31,6 +37,8 @@ impl NodeType {
     pub fn default_radius(&self) -> f64 {
         match self {
             NodeType::Star => 3.2,
+            NodeType::Pulsar => 2.4,
+            NodeType::BlackHole => 4.0,
             NodeType::Planet => 2.0,
             NodeType::Moon => 1.2,
             NodeType::Asteroid => 0.8,
@@ -59,10 +67,12 @@ pub struct Node {
     pub color_idx: usize,
     #[serde(skip)]
     pub trail: VecDeque<(f64, f64)>,
+    #[serde(skip)]
+    pub jet_angle: f64, // For Pulsar relativistic jets
 }
 
 impl Node {
-    pub const MAX_TRAIL: usize = 20;
+    pub const MAX_TRAIL: usize = 28;
 
     pub fn new(id: usize, title: impl Into<String>, node_type: NodeType, x: f64, y: f64) -> Self {
         let mass = node_type.default_mass();
@@ -80,10 +90,11 @@ impl Node {
             fy: 0.0,
             mass,
             radius,
-            pinned: node_type == NodeType::Star,
+            pinned: matches!(node_type, NodeType::Star | NodeType::BlackHole | NodeType::Pulsar),
             tags: Vec::new(),
             color_idx: 0,
             trail: VecDeque::with_capacity(Self::MAX_TRAIL),
+            jet_angle: 0.0,
         }
     }
 

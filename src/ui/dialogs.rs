@@ -12,57 +12,67 @@ pub struct DialogsRenderer;
 
 impl DialogsRenderer {
     pub fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
-        let popup_area = Self::centered_rect(70, 75, area);
+        let popup_area = Self::centered_rect(75, 85, area);
         frame.render_widget(Clear, popup_area);
 
         let block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Thick)
             .border_style(Style::default().fg(theme.accent))
-            .title(" 🪐 ORBITFLOW // COMMANDS & FLIGHT MANUAL ")
+            .title(" 🪐 ORBITFLOW // ASTRODYNAMICS FLIGHT MANUAL ")
             .title_alignment(Alignment::Center);
 
         let help_text = vec![
             Line::from(Span::styled(
-                "─── NAVIGATION & CAMERA ──────────────────────────────────────────",
-                Style::default().fg(theme.accent),
+                "─── FLIGHT THRUSTERS & ASTRODYNAMICS ─────────────────────────────",
+                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
             )),
-            Line::from("  [h / j / k / l] or [Arrows] : Pan camera across space"),
+            Line::from("  [W]                         : Prograde Thruster Burn (+Δv, raises apoapsis)"),
+            Line::from("  [S]                         : Retrograde Thruster Burn (-Δv, lowers periapsis)"),
+            Line::from("  [A / D]                     : Radial In/Out Thruster Burns (rotates ellipse)"),
+            Line::from("  [Left Click & Drag]         : Manual orbital sling fling with momentum"),
+            Line::from(""),
+            Line::from(Span::styled(
+                "─── RELATIVISTIC & COSMIC VISUALS ───────────────────────────────",
+                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+            )),
+            Line::from("  [g]                         : Toggle Einstein Warped Spacetime Metric Grid"),
+            Line::from("  [v]                         : Toggle Velocity Vector Arrows (Flight needles)"),
+            Line::from("  [o]                         : Toggle Predicted Keplerian Orbital Rings"),
+            Line::from("  [b]                         : Birth a Supermassive Singularity (Black Hole)"),
+            Line::from("  [k]                         : Detonate Supernova Gravitational Shockwave"),
+            Line::from(""),
+            Line::from(Span::styled(
+                "─── NAVIGATION & FLIGHT DECK ─────────────────────────────────────",
+                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+            )),
+            Line::from("  [h / j / k / l] or [Arrows] : Pan camera across deep space"),
             Line::from("  [+] / [-] or [Mouse Scroll] : Zoom in / out"),
-            Line::from("  [f]                         : Center camera on selected planet"),
-            Line::from("  [0]                         : Reset camera to origin (0, 0)"),
+            Line::from("  [f]                         : Track & lock camera onto target body"),
+            Line::from("  [0]                         : Reset camera to galactic origin (0, 0)"),
+            Line::from("  [Tab]                       : Cycle selected celestial body"),
             Line::from(""),
             Line::from(Span::styled(
-                "─── MINDMAP & THOUGHT ACTIONS ───────────────────────────────────",
-                Style::default().fg(theme.accent),
+                "─── MISSION DIRECTIVES & SCRATCHPAD ─────────────────────────────",
+                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
             )),
-            Line::from("  [Tab]                       : Cycle selected celestial node"),
-            Line::from("  [n]                         : Spawn a new thought (Star / Planet / Moon)"),
-            Line::from("  [e]                         : Open scratchpad note editor"),
-            Line::from("  [c]                         : Connect thoughts with gravitational spring"),
-            Line::from("  [p]                         : Pin / Unpin node (make it an anchor)"),
-            Line::from("  [d] / [x]                   : Delete selected thought"),
-            Line::from("  [Left Click & Drag]         : Fling any planet with momentum!"),
-            Line::from(""),
-            Line::from(Span::styled(
-                "─── PHYSICS SANDBOX ──────────────────────────────────────────────",
-                Style::default().fg(theme.accent),
-            )),
-            Line::from("  [Space]                     : Pause / Resume celestial simulation"),
-            Line::from("  [ [ / ] ]                   : Decrease / Increase Gravity G"),
-            Line::from("  [ { / } ]                   : Decrease / Increase Cosmic Drag"),
-            Line::from("  [ < / > ]                   : Slow down / Speed up time"),
+            Line::from("  [n]                         : Birth celestial thought (Star, Pulsar, Black Hole...)"),
+            Line::from("  [e]                         : Open scratchpad mission log editor"),
+            Line::from("  [c]                         : Link thoughts with elastic gravitational spring"),
+            Line::from("  [p]                         : Pin / Unpin as spatial anchor"),
+            Line::from("  [d] / [Delete]              : De-orbit & erase selected thought"),
             Line::from(""),
             Line::from(Span::styled(
                 "─── PRESETS & SYSTEM ─────────────────────────────────────────────",
-                Style::default().fg(theme.accent),
+                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
             )),
-            Line::from("  [1]                         : Load Solar System Brainstorm"),
-            Line::from("  [2]                         : Load Three-Body Problem"),
-            Line::from("  [t]                         : Cycle TrueColor Theme"),
-            Line::from("  [s]                         : Save to orbitflow.json"),
-            Line::from("  [m]                         : Export galaxy to orbitflow.md (Markdown)"),
-            Line::from("  [q] / [Esc]                 : Close modal / Quit OrbitFlow"),
+            Line::from("  [1]                         : Preset 1 - Solar System Brainstorm"),
+            Line::from("  [2]                         : Preset 2 - Chaotic Three-Body Problem"),
+            Line::from("  [3]                         : Preset 3 - Gargantua Singularity Laboratory"),
+            Line::from("  [t]                         : Cycle TrueColor Theme (Cyberpunk / Mocha / Amber)"),
+            Line::from("  [s] / [m]                   : Save to JSON / Export to Markdown"),
+            Line::from("  [Space]                     : Freeze / Resume cosmic time"),
+            Line::from("  [q] / [Esc]                 : Close manual / Exit OrbitFlow"),
         ];
 
         let p = Paragraph::new(help_text)
@@ -80,7 +90,7 @@ impl DialogsRenderer {
         focused_field: usize,
         theme: &Theme,
     ) {
-        let popup_area = Self::centered_rect(50, 45, area);
+        let popup_area = Self::centered_rect(54, 48, area);
         frame.render_widget(Clear, popup_area);
 
         let block = Block::default()
@@ -125,13 +135,15 @@ impl DialogsRenderer {
         let type_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(type_border))
-            .title(" Type (← / → to switch) ");
+            .title(" Celestial Class (← / → to switch) ");
 
         let type_str = match node_type {
-            NodeType::Star => "★ Star (Anchor Hub, High Mass)",
-            NodeType::Planet => "● Planet (Core Concept, Medium Mass)",
-            NodeType::Moon => "◦ Moon (Sub-task / Action Item)",
-            NodeType::Asteroid => "· Asteroid (Floating Stray Note)",
+            NodeType::Star => "★ Star (Radiant Anchor Hub, Mass: 80)",
+            NodeType::Pulsar => "⚡ Pulsar (Relativistic Magnetic Beams, Mass: 120)",
+            NodeType::BlackHole => "🕳 Black Hole (Gravitational Singularity, Mass: 220)",
+            NodeType::Planet => "● Planet (Core Conceptual Domain, Mass: 24)",
+            NodeType::Moon => "◦ Moon (Sub-task / Action Item, Mass: 8)",
+            NodeType::Asteroid => "· Asteroid (Floating Stray Debris, Mass: 3)",
         };
         let type_p = Paragraph::new(type_str).block(type_block);
         frame.render_widget(type_p, chunks[1]);
@@ -154,7 +166,7 @@ impl DialogsRenderer {
             Span::styled("[Tab] ", Style::default().fg(theme.accent)),
             Span::raw("Next Field  "),
             Span::styled("[Enter] ", Style::default().fg(theme.selection)),
-            Span::raw("Create  "),
+            Span::raw("Birth  "),
             Span::styled("[Esc] ", Style::default().fg(theme.spring_tense)),
             Span::raw("Cancel"),
         ]))
@@ -176,7 +188,7 @@ impl DialogsRenderer {
             .borders(Borders::ALL)
             .border_type(BorderType::Thick)
             .border_style(Style::default().fg(theme.accent))
-            .title(format!(" 📝 EDIT SCRATCHPAD: \"{}\" ", node_title))
+            .title(format!(" 📝 MISSION LOG DISPATCH: \"{}\" ", node_title))
             .title_alignment(Alignment::Center);
 
         let inner = block.inner(popup_area);
@@ -190,7 +202,7 @@ impl DialogsRenderer {
         let text_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.border_focus))
-            .title(" Content (Markdown supported) ");
+            .title(" Directives & Notes (Markdown supported) ");
 
         let p = Paragraph::new(format!("{}_", text_content))
             .block(text_block)
@@ -199,7 +211,7 @@ impl DialogsRenderer {
 
         let footer = Paragraph::new(Line::from(vec![
             Span::styled("[Ctrl+S / Enter] ", Style::default().fg(theme.selection)),
-            Span::raw("Save  "),
+            Span::raw("Transmit  "),
             Span::styled("[Esc] ", Style::default().fg(theme.spring_tense)),
             Span::raw("Cancel"),
         ]))
@@ -215,14 +227,14 @@ impl DialogsRenderer {
         selected_idx: usize,
         theme: &Theme,
     ) {
-        let popup_area = Self::centered_rect(45, 50, area);
+        let popup_area = Self::centered_rect(48, 50, area);
         frame.render_widget(Clear, popup_area);
 
         let block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Thick)
             .border_style(Style::default().fg(theme.accent))
-            .title(format!(" 🔗 LINK \"{}\" TO... ", source_title))
+            .title(format!(" 🔗 ESTABLISH GRAVITY LINK: \"{}\" ", source_title))
             .title_alignment(Alignment::Center);
 
         let inner = block.inner(popup_area);
@@ -240,6 +252,8 @@ impl DialogsRenderer {
                 let is_cur = i == selected_idx;
                 let badge = match ntype {
                     NodeType::Star => "★",
+                    NodeType::Pulsar => "⚡",
+                    NodeType::BlackHole => "🕳",
                     NodeType::Planet => "●",
                     NodeType::Moon => "◦",
                     NodeType::Asteroid => "·",
@@ -259,13 +273,13 @@ impl DialogsRenderer {
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.border))
-                .title(" Select Target Thought (↑ / ↓) "),
+                .title(" Target Body (↑ / ↓) "),
         );
         frame.render_widget(list, chunks[0]);
 
         let footer = Paragraph::new(Line::from(vec![
             Span::styled("[Enter] ", Style::default().fg(theme.selection)),
-            Span::raw("Connect  "),
+            Span::raw("Link  "),
             Span::styled("[Esc] ", Style::default().fg(theme.spring_tense)),
             Span::raw("Cancel"),
         ]))

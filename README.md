@@ -8,8 +8,8 @@
 \____/_/  /_.___/_/\__/_/     /_/\____/|__/|__/   
 ```
 
-### 🪐 Zero-Gravity Spatial Mindmap & Scratchpad in Your Terminal
-*Turn your ideas into celestial bodies governed by real-time orbital physics.*
+### 🪐 Relativistic Spatial Mindmap & Astrodynamics Flight Deck in Your Terminal
+*A terminal laboratory where thoughts are celestial bodies governed by Einsteinian spacetime warping and Keplerian orbital mechanics.*
 
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![Ratatui](https://img.shields.io/badge/ratatui-0.29-green.svg?style=flat-square)](https://ratatui.rs)
@@ -19,111 +19,76 @@
 
 ---
 
-## ✨ What is OrbitFlow?
+## ⚡ What Makes OrbitFlow Unique?
 
-**OrbitFlow** is a hacker's spatial note-taking and brainstorming playground that runs entirely inside your terminal.
+This is **not** a standard static markdown graph view. 
 
-Instead of rigid bullet lists or static tree diagrams, thoughts in OrbitFlow are **celestial bodies**:
-- 🌟 **Stars (Hubs):** Massive anchor thoughts that exert central gravitational attraction.
-- ● **Planets (Concepts):** Medium-mass thoughts that orbit stars or drift freely.
-- ◦ **Moons (Tasks/Notes):** Sub-tasks bound by elastic gravitational springs to their parent planet.
-- · **Asteroids (Stray Thoughts):** Light, unanchored sparks of inspiration.
+OrbitFlow turns your brainstorming into an **interactive astrodynamics simulator** with real gravitational physics, relativistic singularities, and orbital flight telemetry:
 
-All bodies interact via **N-Body Gravitational Physics**, **Coulomb Electrostatic Repulsion** (preventing overlapping clutter), and **Hooke's Elastic Springs**—rendered at a silky 60 FPS using Ratatui's high-resolution Braille canvas with stardust motion trails!
-
----
-
-## 🚀 Key Features
-
-* **Sub-Pixel Braille Canvas:** 2×4 sub-pixel terminal graphics with stardust motion trails, glowing orbital paths, and tension-colored spring lines.
-* **Tactile Physics & Mouse Fling:** Click and drag any planet with your mouse to fling it across space with realistic orbital momentum.
-* **Side-Panel Markdown Scratchpad:** Inspect thoughts, write multiline markdown notes, tag ideas, and track real-time physical properties (mass, speed, coordinates).
-* **Vim-First Navigation:** Pan with `h/j/k/l`, zoom with `+`/`-`, cycle with `Tab`, and snap-focus camera with `f`.
-* **Live Physics Sandbox HUD:** Adjust gravitational constant $G$, cosmic drag/damping, and simulation speed on the fly with single keystrokes.
-* **Galaxy Presets:**
-  * `[1]` **Solar System Brainstorm:** Core initiative with orbiting subsystems and task moons.
-  * `[2]` **Three-Body Problem:** Chaotic gravitational sandbox with binary stars and slingshot asteroids.
-* **TrueColor Themes:** Switch between **Cyberpunk Neon**, **Catppuccin Mocha**, and **Phosphor Amber** with `t`.
-* **Persistence & Export:** Save/load state via JSON (`s`) or export your entire galaxy into a structured Markdown document (`m`).
+* 🌌 **Einstein Warped Spacetime Grid:** Real-time 2D metric tensor grid that dynamically dips and funnels downward under the mass of stars and black holes.
+* 🕳 **Supermassive Singularities & Event Horizons:** Birth Black Holes (`b`) with gravitational event horizons that actively pull in and consume stray debris.
+* ⚡ **Relativistic Pulsars:** Spinning neutron stars emitting twin sweeping electromagnetic particle jets across deep space.
+* 🛰 **Keplerian Orbital Telemetry:** Live flight computer calculating true orbital eccentricity $e$, altitude, periapsis, apoapsis, and orbital period $T$.
+* 🚀 **WASD Thruster Burns:** Fire prograde burns (`W`) to raise your apoapsis, retrograde burns (`S`) to lower your orbit, or radial burns (`A`/`D`) to steer your orbital ellipse like Kerbal Space Program!
+* 💥 **Gravitational Wave Supernovas:** Detonate energetic shockwaves (`k`) that ripple outward and fling thoughts into resonant orbits.
+* 〰️ **Gravitational Flux Oscilloscope:** Live ASCII waveform gauge measuring tidal gravitational fluctuations in real-time.
 
 ---
 
-## 🎮 Quickstart
+## 🎮 Flight Controls & Keybindings
 
-### Prerequisites
-Make sure you have [Rust & Cargo](https://rustup.rs/) installed.
+### 🚀 Astrodynamic Thrusters & Relativistic Commands
+| Key | Action |
+| --- | --- |
+| `W` | **Prograde Thruster Burn** (+Δv: raises apoapsis altitude) |
+| `S` | **Retrograde Thruster Burn** (-Δv: lowers periapsis altitude) |
+| `A` / `D` | **Radial In / Out Thrusters** (steers and rotates orbital ellipse) |
+| `Left Click & Drag` | Manual orbital sling fling with momentum |
+| `g` | Toggle **Einstein Warped Spacetime Grid** |
+| `v` | Toggle **Flight Velocity Vector Needles** |
+| `o` | Toggle **Predicted Keplerian Orbital Rings** |
+| `b` | Birth a **Supermassive Singularity (Black Hole)** at focus |
+| `k` | Detonate **Supernova Gravitational Wave Shockwave** |
+
+### 🧭 Navigation & Camera
+| Key | Action |
+| --- | --- |
+| `h` / `j` / `k` / `l` or `Arrows` | Pan camera across deep space |
+| `+` / `-` or `Mouse Scroll` | Smooth zoom in / out |
+| `f` | Lock & track camera onto target body |
+| `0` | Center camera on galactic origin `(0, 0)` |
+| `Tab` | Cycle target celestial body |
+
+### 📝 Mission Directives & Mindmap
+| Key | Action |
+| --- | --- |
+| `n` | Birth celestial thought (*Star, Pulsar, Black Hole, Planet, Moon*) |
+| `e` | Open mission dispatch scratchpad editor |
+| `c` | Establish elastic gravitational spring link |
+| `p` | Toggle immovable spatial anchor pin |
+| `d` / `Delete` | De-orbit & erase celestial thought |
+| `Ctrl + S` | Save galaxy state to `orbitflow.json` |
+| `m` | Export galaxy to structured Markdown (`orbitflow.md`) |
+
+### 🌌 Galaxy Presets
+| Key | Action |
+| --- | --- |
+| `1` | **Solar System Brainstorm:** Core hub with orbiting planets and task moons |
+| `2` | **Chaotic Three-Body Problem:** Binary stars and chaotic asteroid slingshots |
+| `3` | **Gargantua Singularity Laboratory:** Black Hole + Pulsar jets + accretion disk |
+| `t` | Cycle TrueColor Theme (*Cyberpunk Neon / Catppuccin Mocha / Phosphor Amber*) |
+| `Space` | Freeze / resume cosmic simulation |
+| `?` | Toggle complete interactive Flight Manual overlay |
+| `q` | Exit OrbitFlow |
+
+---
+
+## 🛠️ Quickstart
 
 ```bash
 git clone https://github.com/vaibhav/orbitflow.git
 cd orbitflow
 cargo run --release
-```
-
----
-
-## 🕹️ Flight Manual & Keybindings
-
-### 🌌 Navigation & Camera
-| Key | Action |
-| --- | --- |
-| `h` / `j` / `k` / `l` or `Arrows` | Pan camera across space |
-| `+` / `-` or `Mouse Scroll` | Zoom in / Zoom out |
-| `f` | Snap & focus camera on selected planet |
-| `0` | Reset camera to cosmic origin `(0, 0)` |
-
-### 💡 Mindmap & Thoughts
-| Key | Action |
-| --- | --- |
-| `Tab` | Cycle selected celestial thought |
-| `n` | Birth new celestial thought (*Star, Planet, Moon, Asteroid*) |
-| `e` | Open scratchpad note editor for selected thought |
-| `c` | Link two thoughts with a gravitational spring |
-| `p` | Pin / Unpin thought as an immovable spatial anchor |
-| `d` / `Delete` | Erase selected thought from the cosmos |
-| `Left Click & Drag` | Grab and fling any planet with orbital velocity |
-
-### ⚛️ Physics Sandbox
-| Key | Action |
-| --- | --- |
-| `Space` | Pause / Resume cosmic simulation |
-| `[` / `]` | Decrease / Increase Gravity $G$ |
-| `{` / `}` | Decrease / Increase Cosmic Drag (damping) |
-| `<` / `>` | Slow down / Speed up simulation time scale |
-
-### 🛠️ Presets & System
-| Key | Action |
-| --- | --- |
-| `1` | Load **Solar System Brainstorm** preset |
-| `2` | Load **Three-Body Problem** preset |
-| `t` | Cycle TrueColor Theme (*Cyberpunk / Catppuccin / Amber*) |
-| `s` | Save galaxy state to `orbitflow.json` |
-| `m` | Export galaxy to `orbitflow.md` |
-| `?` | Open interactive Help & Flight Manual overlay |
-| `q` / `Esc` | Quit OrbitFlow |
-
----
-
-## 🏗️ Architecture
-
-```
-src/
-├── main.rs              # 60 FPS event loop, raw terminal lifecycle & input router
-├── app.rs               # State machine, screen-to-world camera projection
-├── model/
-│   ├── node.rs          # Node, NodeType (Star, Planet, Moon), stardust trail queue
-│   ├── connection.rs    # Spring links and tension calculations
-│   └── universe.rs      # Galaxy container, spatial queries, and presets
-├── physics/
-│   ├── engine.rs        # Symplectic Verlet integration, N-body gravity, Coulomb repulsion
-│   └── particle.rs      # Ambient cosmic dust field
-├── ui/
-│   ├── canvas.rs        # Ratatui Braille sub-pixel canvas renderer
-│   ├── inspector.rs     # Markdown scratchpad & node property sidebar
-│   ├── hud.rs           # Real-time status bar & physics controls
-│   ├── dialogs.rs       # Modal popups (Help manual, New Node, Note editor)
-│   └── theme.rs         # 24-bit TrueColor themes
-└── storage/
-    └── io.rs            # JSON serialization and hierarchical Markdown exporter
 ```
 
 ---

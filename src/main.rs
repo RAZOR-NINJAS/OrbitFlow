@@ -6,6 +6,7 @@ mod ui;
 
 use app::{App, AppMode, FocusedPanel};
 use model::NodeType;
+use physics::PhysicsEngine;
 use ui::{CanvasRenderer, DialogsRenderer, HudRenderer, InspectorRenderer};
 
 use crossterm::{
@@ -49,20 +50,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .constraints([Constraint::Min(8), Constraint::Length(3)])
                 .split(area);
 
-            // Top horizontal layout: Canvas (70%) and Inspector (30%)
+            // Top horizontal layout: Canvas (68%) and Inspector (32%)
             let top_chunks = Layout::default()
                 .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+                .constraints([Constraint::Percentage(68), Constraint::Percentage(32)])
                 .split(main_chunks[0]);
 
             app.canvas_area = top_chunks[0];
 
-            // Render Canvas
+            // Render Interstellar Braille Canvas
             CanvasRenderer::render(
                 frame,
                 top_chunks[0],
                 &app.universe,
                 &app.cosmic_dust,
+                &app.physics_config,
                 app.camera_x,
                 app.camera_y,
                 app.zoom,
@@ -71,11 +73,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &app.theme,
             );
 
-            // Render Inspector / Scratchpad
+            // Render Flight Computer & Telemetry Deck
             InspectorRenderer::render(
                 frame,
                 top_chunks[1],
                 &app.universe,
+                &app.physics_config,
                 app.selected_node_id,
                 app.focused_panel == FocusedPanel::Inspector,
                 &app.theme,
@@ -83,12 +86,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Render HUD
             let mode_str = match &app.mode {
-                AppMode::Normal => "NORMAL",
-                AppMode::Help => "HELP",
-                AppMode::NewNode { .. } => "BIRTH_THOUGHT",
-                AppMode::EditNote { .. } => "EDIT_SCRATCHPAD",
+                AppMode::Normal => "FLIGHT_ACTIVE",
+                AppMode::Help => "FLIGHT_MANUAL",
+                AppMode::NewNode { .. } => "BIRTH_BODY",
+                AppMode::EditNote { .. } => "TRANSMIT_LOG",
                 AppMode::Connect { .. } => "GRAVITY_LINK",
-                AppMode::DraggingNode { .. } => "FLING_ORBIT",
+                AppMode::DraggingNode { .. } => "ORBITAL_FLING",
             };
 
             HudRenderer::render(
@@ -128,7 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .selected_node_id
                         .and_then(|id| app.universe.get_node(id))
                         .map(|n| n.title.as_str())
-                        .unwrap_or("Untitled");
+                        .unwrap_or("Target");
                     DialogsRenderer::render_edit_note(frame, area, title, buffer, &app.theme);
                 }
                 AppMode::Connect {
@@ -188,7 +191,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     terminal.show_cursor()?;
 
-    println!("✨ OrbitFlow exited gracefully. Keep your thoughts orbiting!");
+    println!("✨ OrbitFlow flight deck disengaged. Keep your thoughts in orbit!");
     Ok(())
 }
 
@@ -223,7 +226,9 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                     KeyCode::Left if focused_field == 1 => {
                         node_type = match node_type {
                             NodeType::Star => NodeType::Asteroid,
-                            NodeType::Planet => NodeType::Star,
+                            NodeType::Pulsar => NodeType::Star,
+                            NodeType::BlackHole => NodeType::Pulsar,
+                            NodeType::Planet => NodeType::BlackHole,
                             NodeType::Moon => NodeType::Planet,
                             NodeType::Asteroid => NodeType::Moon,
                         };
@@ -236,7 +241,9 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                     }
                     KeyCode::Right if focused_field == 1 => {
                         node_type = match node_type {
-                            NodeType::Star => NodeType::Planet,
+                            NodeType::Star => NodeType::Pulsar,
+                            NodeType::Pulsar => NodeType::BlackHole,
+                            NodeType::BlackHole => NodeType::Planet,
                             NodeType::Planet => NodeType::Moon,
                             NodeType::Moon => NodeType::Asteroid,
                             NodeType::Asteroid => NodeType::Star,
@@ -279,7 +286,7 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                             use rand::Rng;
                             let mut rng = rand::thread_rng();
                             let angle: f64 = rng.gen_range(0.0..std::f64::consts::TAU);
-                            let dist: f64 = rng.gen_range(20.0..50.0);
+                            let dist: f64 = rng.gen_range(20.0..45.0);
                             let x = app.camera_x + angle.cos() * dist;
                             let y = app.camera_y + angle.sin() * dist;
 
@@ -297,18 +304,19 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
 
                             if let Some(n) = app.universe.get_node_mut(new_id) {
                                 n.tags = tag_list;
-                                n.vx = -angle.sin() * 0.8;
-                                n.vy = angle.cos() * 0.8;
+                                n.vx = -angle.sin() * 0.9;
+                                n.vy = angle.cos() * 0.9;
                             }
 
+                            // Automatically establish spring link to selected anchor
                             if let Some(sel_id) = app.selected_node_id {
                                 if sel_id != new_id {
-                                    app.universe.connect(sel_id, new_id, 30.0);
+                                    app.universe.connect(sel_id, new_id, 32.0);
                                 }
                             }
 
                             app.selected_node_id = Some(new_id);
-                            app.set_status(format!("Spawned \"{}\"", title));
+                            app.set_status(format!("Birthed celestial body: \"{}\"", title));
                         }
                         app.mode = AppMode::Normal;
                     }
@@ -336,7 +344,7 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                             if let Some(id) = app.selected_node_id {
                                 if let Some(node) = app.universe.get_node_mut(id) {
                                     node.notes = buffer;
-                                    app.set_status("Notes updated!");
+                                    app.set_status("Mission directives logged!");
                                 }
                             }
                             app.mode = AppMode::Normal;
@@ -353,7 +361,7 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                         if let Some(id) = app.selected_node_id {
                             if let Some(node) = app.universe.get_node_mut(id) {
                                 node.notes = buffer;
-                                app.set_status("Notes updated!");
+                                app.set_status("Mission directives logged!");
                             }
                         }
                         app.mode = AppMode::Normal;
@@ -399,8 +407,8 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                     KeyCode::Enter => {
                         if let Some((target_id, _, _)) = candidates.get(selected_idx) {
                             if let Some(source_id) = app.selected_node_id {
-                                app.universe.connect(source_id, *target_id, 32.0);
-                                app.set_status("Gravitational spring linked!");
+                                app.universe.connect(source_id, *target_id, 35.0);
+                                app.set_status("Elastic gravitational spring established!");
                             }
                         }
                         app.mode = AppMode::Normal;
@@ -429,27 +437,99 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
             KeyCode::Char(' ') => {
                 app.physics_config.paused = !app.physics_config.paused;
                 app.set_status(if app.physics_config.paused {
-                    "Simulation paused"
+                    "Cosmic simulation PAUSED"
                 } else {
-                    "Simulation active"
+                    "Cosmic simulation RUNNING"
                 });
             }
             KeyCode::Tab => {
                 app.cycle_selected_node();
             }
-            // Pan camera
-            KeyCode::Char('h') | KeyCode::Left => {
+
+            // Orbital Astrodynamic Thruster Burns
+            KeyCode::Char('w') | KeyCode::Char('W') => {
+                if let Some(id) = app.selected_node_id {
+                    PhysicsEngine::apply_thruster_burn(&mut app.universe, id, 0.55);
+                    app.set_status("🔥 PROGRADE BURN (+Δv: Raising Apoapsis Altitude)");
+                }
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                if modifiers.contains(KeyModifiers::CONTROL) {
+                    app.save_universe();
+                } else if let Some(id) = app.selected_node_id {
+                    PhysicsEngine::apply_thruster_burn(&mut app.universe, id, -0.55);
+                    app.set_status("💨 RETROGRADE BURN (-Δv: Lowering Periapsis Altitude)");
+                }
+            }
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                if let Some(id) = app.selected_node_id {
+                    PhysicsEngine::apply_radial_burn(&mut app.universe, id, -0.45);
+                    app.set_status("🚀 RADIAL INWARD BURN (Rotating Orbital Ellipse)");
+                }
+            }
+            // Toggle Spacetime grid / Velocity vectors
+            KeyCode::Char('g') => {
+                app.physics_config.show_spacetime_grid = !app.physics_config.show_spacetime_grid;
+                app.set_status(if app.physics_config.show_spacetime_grid {
+                    "Einstein Warped Spacetime Grid: ACTIVE"
+                } else {
+                    "Spacetime Grid: DISABLED"
+                });
+            }
+            KeyCode::Char('v') => {
+                app.physics_config.show_velocity_vectors = !app.physics_config.show_velocity_vectors;
+                app.set_status(if app.physics_config.show_velocity_vectors {
+                    "Flight Velocity Vector Arrows: ACTIVE"
+                } else {
+                    "Velocity Vectors: DISABLED"
+                });
+            }
+            KeyCode::Char('o') => {
+                app.physics_config.show_orbit_paths = !app.physics_config.show_orbit_paths;
+                app.set_status(if app.physics_config.show_orbit_paths {
+                    "Predicted Keplerian Orbital Rings: ACTIVE"
+                } else {
+                    "Orbital Rings: DISABLED"
+                });
+            }
+
+            // Relativistic events: Birth Black Hole & Supernova
+            KeyCode::Char('b') => {
+                let bh_id = app.universe.add_node("Singularity Core", NodeType::BlackHole, app.camera_x, app.camera_y);
+                app.selected_node_id = Some(bh_id);
+                app.set_status("🕳 SUPERMASSIVE BLACK HOLE BIRTHED AT CAMERA FOCUS!");
+            }
+            KeyCode::Char('k') => {
+                PhysicsEngine::trigger_gravitational_wave(&mut app.universe, app.camera_x, app.camera_y, 45.0);
+                app.set_status("💥 SUPERNOVA GRAVITATIONAL WAVE RADIATED ACROSS THE SECTOR!");
+            }
+
+            // Camera panning (Arrow keys or hjkl)
+            KeyCode::Left => {
                 app.camera_x -= 6.0 / app.zoom;
             }
-            KeyCode::Char('l') | KeyCode::Right => {
+            KeyCode::Right => {
                 app.camera_x += 6.0 / app.zoom;
             }
-            KeyCode::Char('k') | KeyCode::Up => {
+            KeyCode::Up => {
                 app.camera_y += 6.0 / app.zoom;
             }
-            KeyCode::Char('j') | KeyCode::Down => {
+            KeyCode::Down => {
                 app.camera_y -= 6.0 / app.zoom;
             }
+            KeyCode::Char('h') => {
+                app.camera_x -= 6.0 / app.zoom;
+            }
+            KeyCode::Char('l') => {
+                app.camera_x += 6.0 / app.zoom;
+            }
+            KeyCode::Char('u') => {
+                app.camera_y += 6.0 / app.zoom;
+            }
+            KeyCode::Char('j') => {
+                app.camera_y -= 6.0 / app.zoom;
+            }
+
             // Zoom
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 app.zoom = (app.zoom * 1.15).min(5.0);
@@ -461,7 +541,7 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                 app.camera_x = 0.0;
                 app.camera_y = 0.0;
                 app.zoom = 1.0;
-                app.set_status("Camera reset to cosmic center");
+                app.set_status("Camera centered on galactic origin (0, 0)");
             }
             KeyCode::Char('f') => {
                 app.focus_camera_on_selected();
@@ -510,11 +590,12 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                             selected_idx: 0,
                         };
                     } else {
-                        app.set_status("Need at least 2 nodes to connect");
+                        app.set_status("Need at least 2 bodies to establish gravity link");
                     }
                 }
             }
-            // Physics sliders
+
+            // Physics tuning
             KeyCode::Char('[') => {
                 app.physics_config.gravity_g = (app.physics_config.gravity_g - 10.0).max(0.0);
                 app.set_status(format!("Gravity G: {:.0}", app.physics_config.gravity_g));
@@ -525,35 +606,39 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
             }
             KeyCode::Char('{') => {
                 app.physics_config.damping = (app.physics_config.damping - 0.01).max(0.90);
-                app.set_status(format!("Drag (damping): {:.3}", app.physics_config.damping));
+                app.set_status(format!("Cosmic Drag: {:.3}", app.physics_config.damping));
             }
             KeyCode::Char('}') => {
                 app.physics_config.damping = (app.physics_config.damping + 0.005).min(1.0);
-                app.set_status(format!("Drag (damping): {:.3}", app.physics_config.damping));
+                app.set_status(format!("Cosmic Drag: {:.3}", app.physics_config.damping));
             }
             KeyCode::Char('<') => {
                 app.physics_config.time_scale = (app.physics_config.time_scale - 0.2).max(0.2);
-                app.set_status(format!("Speed: {:.1}x", app.physics_config.time_scale));
+                app.set_status(format!("Simulation Speed: {:.1}x", app.physics_config.time_scale));
             }
             KeyCode::Char('>') => {
                 app.physics_config.time_scale = (app.physics_config.time_scale + 0.2).min(3.0);
-                app.set_status(format!("Speed: {:.1}x", app.physics_config.time_scale));
+                app.set_status(format!("Simulation Speed: {:.1}x", app.physics_config.time_scale));
             }
+
             // Presets
             KeyCode::Char('1') => {
                 app.universe = crate::model::Universe::preset_solar_system();
                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
-                app.set_status("Loaded Solar System preset");
+                app.set_status("Preset 1: Solar System Brainstorm loaded");
             }
             KeyCode::Char('2') => {
                 app.universe = crate::model::Universe::preset_three_body();
                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
-                app.set_status("Loaded Three-Body Problem preset");
+                app.set_status("Preset 2: Chaotic Three-Body Problem loaded");
             }
-            // Storage
-            KeyCode::Char('s') => {
-                app.save_universe();
+            KeyCode::Char('3') => {
+                app.universe = crate::model::Universe::preset_singularity_laboratory();
+                app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
+                app.set_status("Preset 3: Gargantua Singularity Laboratory loaded");
             }
+
+            // Export Markdown
             KeyCode::Char('m') => {
                 app.export_markdown();
             }
@@ -573,7 +658,7 @@ fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) {
                         last_world_x: world_x,
                         last_world_y: world_y,
                     };
-                    app.set_status("Flinging thought...");
+                    app.set_status("🛸 Orbital sling engaged...");
                 }
             }
         }
@@ -605,7 +690,7 @@ fn handle_mouse_event(app: &mut App, mouse: event::MouseEvent) {
         MouseEventKind::Up(MouseButton::Left) => {
             if let AppMode::DraggingNode { .. } = app.mode {
                 app.mode = AppMode::Normal;
-                app.set_status("Thought released into orbit!");
+                app.set_status("🚀 Slingshot released into orbit with momentum!");
             }
         }
         MouseEventKind::ScrollUp => {
