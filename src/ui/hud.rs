@@ -18,6 +18,7 @@ impl HudRenderer {
         mode_str: &str,
         node_count: usize,
         _spring_count: usize,
+        camera_locked: bool,
         zoom: f64,
         theme: &Theme,
     ) {
@@ -38,36 +39,40 @@ impl HudRenderer {
             Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
         );
 
+        let lock_span = if camera_locked {
+            Span::styled(" 🎯 CAM LOCKED ", Style::default().fg(theme.selection).add_modifier(Modifier::BOLD))
+        } else {
+            Span::styled(" 🔓 FREE CAM ", Style::default().fg(theme.text_muted))
+        };
+
         let left_part = vec![
             mode_span,
             Span::raw(" "),
             sim_status,
+            lock_span,
             Span::styled(
-                format!(" │ G: {:.0} │ Drag: {:.3} │ WarpGrid: {} │ Vectors: {} │ Bodies: {} │ Zoom: {:.1}x",
-                    config.gravity_g,
-                    config.damping,
-                    if config.show_spacetime_grid { "ON" } else { "OFF" },
-                    if config.show_velocity_vectors { "ON" } else { "OFF" },
+                format!(" │ Bodies: {} │ Zoom: {:.1}x │ WarpGrid: {}",
                     node_count,
-                    zoom),
+                    zoom,
+                    if config.show_spacetime_grid { "ON" } else { "OFF" }),
                 Style::default().fg(theme.text_muted),
             ),
         ];
 
         let right_hints = vec![
-            Span::styled(" [W/S] ", Style::default().fg(theme.selection)),
-            Span::styled("Burns ", Style::default().fg(theme.text_primary)),
-            Span::styled("[g] ", Style::default().fg(theme.accent)),
-            Span::styled("Grid ", Style::default().fg(theme.text_primary)),
-            Span::styled("[b] ", Style::default().fg(theme.black_hole)),
-            Span::styled("BlackHole ", Style::default().fg(theme.text_primary)),
-            Span::styled("[k] ", Style::default().fg(theme.accent)),
-            Span::styled("Supernova ", Style::default().fg(theme.text_primary)),
-            Span::styled("[1-3] ", Style::default().fg(theme.accent)),
-            Span::styled("Presets ", Style::default().fg(theme.text_primary)),
+            Span::styled(" [Enter] ", Style::default().fg(theme.selection).add_modifier(Modifier::BOLD)),
+            Span::styled("ACTIONS MENU  ", Style::default().fg(theme.text_primary).add_modifier(Modifier::BOLD)),
+            Span::styled("[F] ", Style::default().fg(theme.accent)),
+            Span::styled("Lock Cam  ", Style::default().fg(theme.text_primary)),
+            Span::styled("[L] ", Style::default().fg(theme.accent)),
+            Span::styled("Fleet  ", Style::default().fg(theme.text_primary)),
+            Span::styled("[W/S] ", Style::default().fg(theme.accent)),
+            Span::styled("Burn  ", Style::default().fg(theme.text_primary)),
+            Span::styled("[Space] ", Style::default().fg(theme.accent)),
+            Span::styled("Pause  ", Style::default().fg(theme.text_primary)),
             Span::styled("[?] ", Style::default().fg(theme.accent)),
-            Span::styled("Manual ", Style::default().fg(theme.text_primary)),
-            Span::styled("[q] ", Style::default().fg(theme.spring_tense)),
+            Span::styled("Manual  ", Style::default().fg(theme.text_primary)),
+            Span::styled("[Q] ", Style::default().fg(theme.spring_tense)),
             Span::styled("Quit", Style::default().fg(theme.text_primary)),
         ];
 

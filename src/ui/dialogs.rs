@@ -1,4 +1,4 @@
-use crate::model::NodeType;
+use crate::model::{Node, NodeType};
 use crate::ui::theme::Theme;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -8,9 +8,166 @@ use ratatui::{
     Frame,
 };
 
+pub static QUICK_ACTIONS: &[(&str, &str)] = &[
+    ("🎯 Toggle Camera Lock", "Lock camera to orbit along with selected body (Key: F)"),
+    ("🚀 Prograde Burn (+Δv)", "Fire thrusters forward to raise orbital altitude (Key: W)"),
+    ("💨 Retrograde Burn (-Δv)", "Fire reverse thrusters to lower orbit (Key: S)"),
+    ("🛸 Open Celestial Fleet Roster", "Browse and instantly jump to any body (Key: L)"),
+    ("➕ Birth Celestial Thought", "Create a new Star, Planet, Moon, or Asteroid (Key: N)"),
+    ("🕳 Birth Supermassive Black Hole", "Spawn a gravitational singularity (Key: B)"),
+    ("💥 Detonate Supernova Wave", "Trigger radiating gravitational shockwave (Key: K)"),
+    ("📝 Edit Mission Directives / Notes", "Open Markdown scratchpad editor (Key: E)"),
+    ("🔗 Link Gravity Spring", "Connect thoughts with elastic tension (Key: C)"),
+    ("🌐 Toggle Spacetime Grid", "Toggle Einstein warped spacetime mesh (Key: G)"),
+    ("🚀 Toggle Velocity Vectors", "Toggle flight trajectory needles (Key: V)"),
+    ("🌌 Preset 1: Solar System", "Load core brainstorm galaxy (Key: 1)"),
+    ("🌌 Preset 2: Three-Body Problem", "Load chaotic orbital sandbox (Key: 2)"),
+    ("🌌 Preset 3: Gargantua Singularity", "Load Black Hole & Pulsar system (Key: 3)"),
+    ("🎨 Cycle TrueColor Theme", "Switch Cyberpunk / Mocha / Amber (Key: T)"),
+    ("⏸ Pause / Resume Time", "Freeze or resume orbital motion (Key: Space)"),
+    ("💾 Save Galaxy (JSON)", "Save progress to orbitflow.json (Key: Ctrl+S)"),
+    ("📄 Export to Markdown", "Export full notes to orbitflow.md (Key: M)"),
+    ("❓ Open Flight Manual", "View complete reference guide (Key: ?)"),
+    ("❌ Exit OrbitFlow", "Quit cleanly to shell (Key: Q)"),
+];
+
 pub struct DialogsRenderer;
 
 impl DialogsRenderer {
+    pub fn render_quick_actions(
+        frame: &mut Frame,
+        area: Rect,
+        selected_idx: usize,
+        theme: &Theme,
+    ) {
+        let popup_area = Self::centered_rect(58, 70, area);
+        frame.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Thick)
+            .border_style(Style::default().fg(theme.accent))
+            .title(" ⚡ QUICK ACTIONS PALETTE (↑/↓ Navigate, Enter Select, Esc Close) ")
+            .title_alignment(Alignment::Center);
+
+        let inner = block.inner(popup_area);
+        frame.render_widget(block, popup_area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(4), Constraint::Length(2)])
+            .split(inner);
+
+        let items: Vec<ListItem> = QUICK_ACTIONS
+            .iter()
+            .enumerate()
+            .map(|(i, (title, desc))| {
+                let is_sel = i == selected_idx;
+                let title_style = if is_sel {
+                    Style::default().fg(theme.selection).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(theme.text_primary)
+                };
+                let desc_style = Style::default().fg(theme.text_muted);
+
+                let line = Line::from(vec![
+                    Span::styled(if is_sel { "▶ " } else { "  " }, title_style),
+                    Span::styled(*title, title_style),
+                    Span::raw("  "),
+                    Span::styled(format!("— {}", desc), desc_style),
+                ]);
+                ListItem::new(line)
+            })
+            .collect();
+
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::NONE),
+        );
+        frame.render_widget(list, chunks[0]);
+
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled("[Enter] ", Style::default().fg(theme.selection)),
+            Span::raw("Execute Action  "),
+            Span::styled("[Esc] ", Style::default().fg(theme.spring_tense)),
+            Span::raw("Cancel"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[1]);
+    }
+
+    pub fn render_fleet_list(
+        frame: &mut Frame,
+        area: Rect,
+        nodes: &[Node],
+        selected_idx: usize,
+        theme: &Theme,
+    ) {
+        let popup_area = Self::centered_rect(60, 65, area);
+        frame.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Thick)
+            .border_style(Style::default().fg(theme.accent))
+            .title(" 🛸 CELESTIAL FLEET ROSTER (Select Body & Lock Camera) ")
+            .title_alignment(Alignment::Center);
+
+        let inner = block.inner(popup_area);
+        frame.render_widget(block, popup_area);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(4), Constraint::Length(2)])
+            .split(inner);
+
+        let items: Vec<ListItem> = nodes
+            .iter()
+            .enumerate()
+            .map(|(i, node)| {
+                let is_sel = i == selected_idx;
+                let badge = match node.node_type {
+                    NodeType::Star => "★ STAR",
+                    NodeType::Pulsar => "⚡ PULSAR",
+                    NodeType::BlackHole => "🕳 HOLE",
+                    NodeType::Planet => "● PLANET",
+                    NodeType::Moon => "◦ MOON",
+                    NodeType::Asteroid => "· DUST",
+                };
+                let speed = (node.vx * node.vx + node.vy * node.vy).sqrt();
+
+                let style = if is_sel {
+                    Style::default().fg(theme.selection).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(theme.text_primary)
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(if is_sel { "▶ " } else { "  " }, style),
+                    Span::styled(format!("[{}] ", badge), Style::default().fg(theme.accent)),
+                    Span::styled(format!("#{} \"{}\" ", node.id, node.title), style),
+                    Span::styled(
+                        format!("| Mass: {:.0} | Vel: {:.2} AU/s", node.mass, speed),
+                        Style::default().fg(theme.text_muted),
+                    ),
+                ]);
+                ListItem::new(line)
+            })
+            .collect();
+
+        let list = List::new(items);
+        frame.render_widget(list, chunks[0]);
+
+        let footer = Paragraph::new(Line::from(vec![
+            Span::styled("[Enter] ", Style::default().fg(theme.selection)),
+            Span::raw("Track & Focus Target  "),
+            Span::styled("[Esc] ", Style::default().fg(theme.spring_tense)),
+            Span::raw("Close"),
+        ]))
+        .alignment(Alignment::Center);
+        frame.render_widget(footer, chunks[1]);
+    }
+
     pub fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         let popup_area = Self::centered_rect(75, 85, area);
         frame.render_widget(Clear, popup_area);
@@ -19,10 +176,20 @@ impl DialogsRenderer {
             .borders(Borders::ALL)
             .border_type(BorderType::Thick)
             .border_style(Style::default().fg(theme.accent))
-            .title(" 🪐 ORBITFLOW // ASTRODYNAMICS FLIGHT MANUAL ")
+            .title(" 🪐 ORBITFLOW // FLIGHT MANUAL ")
             .title_alignment(Alignment::Center);
 
         let help_text = vec![
+            Line::from(Span::styled(
+                "─── ESSENTIAL CONTROLS (EASY MODE) ───────────────────────────────",
+                Style::default().fg(theme.selection).add_modifier(Modifier::BOLD),
+            )),
+            Line::from("  [Enter] / [/]               : Open Quick Actions Palette (do anything in 1 click!)"),
+            Line::from("  [L]                         : Open Celestial Fleet Roster to pick any body"),
+            Line::from("  [F]                         : Toggle Camera Lock (auto-tracks selected body)"),
+            Line::from("  [Space]                     : Pause / Resume cosmic time"),
+            Line::from("  [1] / [2]                   : Switch Inspector Tabs (Telemetry / Notes)"),
+            Line::from(""),
             Line::from(Span::styled(
                 "─── FLIGHT THRUSTERS & ASTRODYNAMICS ─────────────────────────────",
                 Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
@@ -48,30 +215,18 @@ impl DialogsRenderer {
             )),
             Line::from("  [h / j / k / l] or [Arrows] : Pan camera across deep space"),
             Line::from("  [+] / [-] or [Mouse Scroll] : Zoom in / out"),
-            Line::from("  [f]                         : Track & lock camera onto target body"),
             Line::from("  [0]                         : Reset camera to galactic origin (0, 0)"),
             Line::from("  [Tab]                       : Cycle selected celestial body"),
-            Line::from(""),
-            Line::from(Span::styled(
-                "─── MISSION DIRECTIVES & SCRATCHPAD ─────────────────────────────",
-                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
-            )),
-            Line::from("  [n]                         : Birth celestial thought (Star, Pulsar, Black Hole...)"),
-            Line::from("  [e]                         : Open scratchpad mission log editor"),
-            Line::from("  [c]                         : Link thoughts with elastic gravitational spring"),
-            Line::from("  [p]                         : Pin / Unpin as spatial anchor"),
-            Line::from("  [d] / [Delete]              : De-orbit & erase selected thought"),
             Line::from(""),
             Line::from(Span::styled(
                 "─── PRESETS & SYSTEM ─────────────────────────────────────────────",
                 Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
             )),
-            Line::from("  [1]                         : Preset 1 - Solar System Brainstorm"),
-            Line::from("  [2]                         : Preset 2 - Chaotic Three-Body Problem"),
-            Line::from("  [3]                         : Preset 3 - Gargantua Singularity Laboratory"),
+            Line::from("  [F1 / 1]                    : Preset 1 - Solar System Brainstorm"),
+            Line::from("  [F2 / 2]                    : Preset 2 - Chaotic Three-Body Problem"),
+            Line::from("  [F3 / 3]                    : Preset 3 - Gargantua Singularity Laboratory"),
             Line::from("  [t]                         : Cycle TrueColor Theme (Cyberpunk / Mocha / Amber)"),
-            Line::from("  [s] / [m]                   : Save to JSON / Export to Markdown"),
-            Line::from("  [Space]                     : Freeze / Resume cosmic time"),
+            Line::from("  [Ctrl+S] / [m]              : Save to JSON / Export to Markdown"),
             Line::from("  [q] / [Esc]                 : Close manual / Exit OrbitFlow"),
         ];
 
@@ -113,7 +268,6 @@ impl DialogsRenderer {
             ])
             .split(inner);
 
-        // Title input
         let title_border = if focused_field == 0 {
             theme.border_focus
         } else {
@@ -126,7 +280,6 @@ impl DialogsRenderer {
         let title_p = Paragraph::new(format!("{}_", input_title)).block(title_block);
         frame.render_widget(title_p, chunks[0]);
 
-        // Type selector
         let type_border = if focused_field == 1 {
             theme.border_focus
         } else {
@@ -148,7 +301,6 @@ impl DialogsRenderer {
         let type_p = Paragraph::new(type_str).block(type_block);
         frame.render_widget(type_p, chunks[1]);
 
-        // Tags input
         let tags_border = if focused_field == 2 {
             theme.border_focus
         } else {
@@ -161,7 +313,6 @@ impl DialogsRenderer {
         let tags_p = Paragraph::new(format!("{}_", tags_input)).block(tags_block);
         frame.render_widget(tags_p, chunks[2]);
 
-        // Footer hint
         let hint = Paragraph::new(Line::from(vec![
             Span::styled("[Tab] ", Style::default().fg(theme.accent)),
             Span::raw("Next Field  "),

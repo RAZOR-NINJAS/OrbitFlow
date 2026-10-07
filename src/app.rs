@@ -11,10 +11,23 @@ pub enum FocusedPanel {
     Inspector,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum InspectorTab {
+    Telemetry,
+    Notes,
+    Fleet,
+}
+
 #[derive(Debug, Clone)]
 pub enum AppMode {
     Normal,
     Help,
+    QuickActions {
+        selected_idx: usize,
+    },
+    FleetList {
+        selected_idx: usize,
+    },
     NewNode {
         title: String,
         node_type: NodeType,
@@ -44,8 +57,10 @@ pub struct App {
     pub camera_x: f64,
     pub camera_y: f64,
     pub zoom: f64,
+    pub camera_locked: bool,
     pub selected_node_id: Option<usize>,
     pub focused_panel: FocusedPanel,
+    pub inspector_tab: InspectorTab,
     pub mode: AppMode,
     pub canvas_area: Rect,
     pub status_message: Option<(String, Instant)>,
@@ -66,12 +81,14 @@ impl App {
             camera_x: 0.0,
             camera_y: 0.0,
             zoom: 1.0,
+            camera_locked: false,
             selected_node_id,
             focused_panel: FocusedPanel::Canvas,
+            inspector_tab: InspectorTab::Telemetry,
             mode: AppMode::Normal,
             canvas_area: Rect::default(),
             status_message: Some((
-                "🪐 Welcome to OrbitFlow! [?] for help, [Space] to pause".into(),
+                "🪐 Welcome! Press [Enter] for Quick Actions menu, [F] to lock camera, [?] for help".into(),
                 Instant::now(),
             )),
             should_quit: false,
@@ -81,6 +98,16 @@ impl App {
     pub fn tick(&mut self, dt: f64) {
         PhysicsEngine::step(&mut self.universe, dt, &mut self.physics_config);
         self.cosmic_dust.step(dt);
+
+        // Camera lock tracking
+        if self.camera_locked {
+            if let Some(id) = self.selected_node_id {
+                if let Some(node) = self.universe.get_node(id) {
+                    self.camera_x = node.x;
+                    self.camera_y = node.y;
+                }
+            }
+        }
 
         // Expire status message after 4 seconds
         if let Some((_, time)) = self.status_message {
@@ -92,6 +119,23 @@ impl App {
 
     pub fn set_status(&mut self, msg: impl Into<String>) {
         self.status_message = Some((msg.into(), Instant::now()));
+    }
+
+    pub fn toggle_camera_lock(&mut self) {
+        self.camera_locked = !self.camera_locked;
+        if self.camera_locked {
+            if let Some(id) = self.selected_node_id {
+                if let Some(node) = self.universe.get_node(id) {
+                    self.camera_x = node.x;
+                    self.camera_y = node.y;
+                    self.set_status(format!("🎯 Camera LOCKED on \"{}\"", node.title));
+                    return;
+                }
+            }
+            self.set_status("🎯 Camera Lock: ACTIVE");
+        } else {
+            self.set_status("🔓 Camera Lock: RELEASED (Free Flight)");
+        }
     }
 
     pub fn cycle_theme(&mut self) {
@@ -123,14 +167,23 @@ impl App {
         };
 
         self.selected_node_id = Some(next_id);
+        let target_info = self.universe.get_node(next_id).map(|n| (n.title.clone(), n.x, n.y));
+        if let Some((title, x, y)) = target_info {
+            self.set_status(format!("Target: \"{}\"", title));
+            if self.camera_locked {
+                self.camera_x = x;
+                self.camera_y = y;
+            }
+        }
     }
 
+    #[allow(dead_code)]
     pub fn focus_camera_on_selected(&mut self) {
         if let Some(id) = self.selected_node_id {
             if let Some(node) = self.universe.get_node(id) {
                 self.camera_x = node.x;
                 self.camera_y = node.y;
-                self.set_status(format!("Focused on \"{}\"", node.title));
+                self.set_status(format!("Centered on \"{}\"", node.title));
             }
         }
     }

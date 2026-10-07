@@ -4,7 +4,7 @@ mod physics;
 mod storage;
 mod ui;
 
-use app::{App, AppMode, FocusedPanel};
+use app::{App, AppMode, FocusedPanel, InspectorTab};
 use model::NodeType;
 use physics::PhysicsEngine;
 use ui::{CanvasRenderer, DialogsRenderer, HudRenderer, InspectorRenderer};
@@ -73,13 +73,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &app.theme,
             );
 
-            // Render Flight Computer & Telemetry Deck
+            // Render Flight Computer & Telemetry Deck with Active Tab
             InspectorRenderer::render(
                 frame,
                 top_chunks[1],
                 &app.universe,
                 &app.physics_config,
                 app.selected_node_id,
+                app.inspector_tab,
+                app.camera_locked,
                 app.focused_panel == FocusedPanel::Inspector,
                 &app.theme,
             );
@@ -88,6 +90,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mode_str = match &app.mode {
                 AppMode::Normal => "FLIGHT_ACTIVE",
                 AppMode::Help => "FLIGHT_MANUAL",
+                AppMode::QuickActions { .. } => "ACTIONS_MENU",
+                AppMode::FleetList { .. } => "FLEET_ROSTER",
                 AppMode::NewNode { .. } => "BIRTH_BODY",
                 AppMode::EditNote { .. } => "TRANSMIT_LOG",
                 AppMode::Connect { .. } => "GRAVITY_LINK",
@@ -101,12 +105,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 mode_str,
                 app.universe.nodes.len(),
                 app.universe.connections.len(),
+                app.camera_locked,
                 app.zoom,
                 &app.theme,
             );
 
             // Render Overlays / Modals based on active mode
             match &app.mode {
+                AppMode::QuickActions { selected_idx } => {
+                    DialogsRenderer::render_quick_actions(frame, area, *selected_idx, &app.theme);
+                }
+                AppMode::FleetList { selected_idx } => {
+                    DialogsRenderer::render_fleet_list(frame, area, &app.universe.nodes, *selected_idx, &app.theme);
+                }
                 AppMode::Help => {
                     DialogsRenderer::render_help(frame, area, &app.theme);
                 }
@@ -197,6 +208,169 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
     match &app.mode {
+        AppMode::QuickActions { .. } => {
+            if let AppMode::QuickActions { mut selected_idx } =
+                std::mem::replace(&mut app.mode, AppMode::Normal)
+            {
+                match code {
+                    KeyCode::Esc => {
+                        app.mode = AppMode::Normal;
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        selected_idx = if selected_idx > 0 {
+                            selected_idx - 1
+                        } else {
+                            crate::ui::dialogs::QUICK_ACTIONS.len() - 1
+                        };
+                        app.mode = AppMode::QuickActions { selected_idx };
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        selected_idx = (selected_idx + 1) % crate::ui::dialogs::QUICK_ACTIONS.len();
+                        app.mode = AppMode::QuickActions { selected_idx };
+                    }
+                    KeyCode::Enter => {
+                        app.mode = AppMode::Normal;
+                        match selected_idx {
+                            0 => app.toggle_camera_lock(),
+                            1 => {
+                                if let Some(id) = app.selected_node_id {
+                                    PhysicsEngine::apply_thruster_burn(&mut app.universe, id, 0.55);
+                                    app.set_status("🔥 PROGRADE BURN (+Δv: Raising Apoapsis)");
+                                }
+                            }
+                            2 => {
+                                if let Some(id) = app.selected_node_id {
+                                    PhysicsEngine::apply_thruster_burn(&mut app.universe, id, -0.55);
+                                    app.set_status("💨 RETROGRADE BURN (-Δv: Lowering Periapsis)");
+                                }
+                            }
+                            3 => {
+                                let initial_idx = app
+                                    .selected_node_id
+                                    .and_then(|id| app.universe.nodes.iter().position(|n| n.id == id))
+                                    .unwrap_or(0);
+                                app.mode = AppMode::FleetList { selected_idx: initial_idx };
+                            }
+                            4 => {
+                                app.mode = AppMode::NewNode {
+                                    title: String::new(),
+                                    node_type: NodeType::Planet,
+                                    tags: String::new(),
+                                    focused_field: 0,
+                                };
+                            }
+                            5 => {
+                                let bh_id = app.universe.add_node("Singularity Core", NodeType::BlackHole, app.camera_x, app.camera_y);
+                                app.selected_node_id = Some(bh_id);
+                                app.set_status("🕳 SUPERMASSIVE BLACK HOLE BIRTHED AT CAMERA FOCUS!");
+                            }
+                            6 => {
+                                PhysicsEngine::trigger_gravitational_wave(&mut app.universe, app.camera_x, app.camera_y, 45.0);
+                                app.set_status("💥 SUPERNOVA GRAVITATIONAL WAVE RADIATED ACROSS THE SECTOR!");
+                            }
+                            7 => {
+                                if let Some(id) = app.selected_node_id {
+                                    let current_notes = app.universe.get_node(id).map(|n| n.notes.clone()).unwrap_or_default();
+                                    app.mode = AppMode::EditNote { buffer: current_notes };
+                                }
+                            }
+                            8 => {
+                                if let Some(source_id) = app.selected_node_id {
+                                    let candidates: Vec<(usize, String, NodeType)> = app
+                                        .universe
+                                        .nodes
+                                        .iter()
+                                        .filter(|n| n.id != source_id)
+                                        .map(|n| (n.id, n.title.clone(), n.node_type))
+                                        .collect();
+                                    if !candidates.is_empty() {
+                                        app.mode = AppMode::Connect { candidates, selected_idx: 0 };
+                                    }
+                                }
+                            }
+                            9 => {
+                                app.physics_config.show_spacetime_grid = !app.physics_config.show_spacetime_grid;
+                                app.set_status(if app.physics_config.show_spacetime_grid { "Spacetime Grid: ACTIVE" } else { "Spacetime Grid: DISABLED" });
+                            }
+                            10 => {
+                                app.physics_config.show_velocity_vectors = !app.physics_config.show_velocity_vectors;
+                                app.set_status(if app.physics_config.show_velocity_vectors { "Velocity Vectors: ACTIVE" } else { "Velocity Vectors: DISABLED" });
+                            }
+                            11 => {
+                                app.universe = crate::model::Universe::preset_solar_system();
+                                app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
+                                app.set_status("Preset 1: Solar System Brainstorm loaded");
+                            }
+                            12 => {
+                                app.universe = crate::model::Universe::preset_three_body();
+                                app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
+                                app.set_status("Preset 2: Chaotic Three-Body Problem loaded");
+                            }
+                            13 => {
+                                app.universe = crate::model::Universe::preset_singularity_laboratory();
+                                app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
+                                app.set_status("Preset 3: Gargantua Singularity Laboratory loaded");
+                            }
+                            14 => app.cycle_theme(),
+                            15 => {
+                                app.physics_config.paused = !app.physics_config.paused;
+                                app.set_status(if app.physics_config.paused { "Simulation PAUSED" } else { "Simulation RUNNING" });
+                            }
+                            16 => app.save_universe(),
+                            17 => app.export_markdown(),
+                            18 => app.mode = AppMode::Help,
+                            19 => app.should_quit = true,
+                            _ => {}
+                        }
+                    }
+                    _ => {
+                        app.mode = AppMode::QuickActions { selected_idx };
+                    }
+                }
+            }
+        }
+        AppMode::FleetList { .. } => {
+            if let AppMode::FleetList { mut selected_idx } =
+                std::mem::replace(&mut app.mode, AppMode::Normal)
+            {
+                match code {
+                    KeyCode::Esc => {
+                        app.mode = AppMode::Normal;
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        let count = app.universe.nodes.len();
+                        if count > 0 {
+                            selected_idx = if selected_idx > 0 { selected_idx - 1 } else { count - 1 };
+                            app.mode = AppMode::FleetList { selected_idx };
+                        }
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        let count = app.universe.nodes.len();
+                        if count > 0 {
+                            selected_idx = (selected_idx + 1) % count;
+                            app.mode = AppMode::FleetList { selected_idx };
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if let Some(target) = app.universe.nodes.get(selected_idx) {
+                            let id = target.id;
+                            let title = target.title.clone();
+                            let x = target.x;
+                            let y = target.y;
+                            app.selected_node_id = Some(id);
+                            app.camera_x = x;
+                            app.camera_y = y;
+                            app.camera_locked = true;
+                            app.set_status(format!("🎯 Camera Locked on \"{}\"", title));
+                        }
+                        app.mode = AppMode::Normal;
+                    }
+                    _ => {
+                        app.mode = AppMode::FleetList { selected_idx };
+                    }
+                }
+            }
+        }
         AppMode::Help => {
             if matches!(code, KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?')) {
                 app.mode = AppMode::Normal;
@@ -308,7 +482,6 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                                 n.vy = angle.cos() * 0.9;
                             }
 
-                            // Automatically establish spring link to selected anchor
                             if let Some(sel_id) = app.selected_node_id {
                                 if sel_id != new_id {
                                     app.universe.connect(sel_id, new_id, 32.0);
@@ -434,6 +607,41 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
             KeyCode::Char('?') => {
                 app.mode = AppMode::Help;
             }
+
+            // PRIMARY EASY ACCESS: Open Quick Actions Menu
+            KeyCode::Enter | KeyCode::Char('/') => {
+                app.mode = AppMode::QuickActions { selected_idx: 0 };
+            }
+
+            // CAMERA LOCK: Auto-tracks currently selected planet
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                app.toggle_camera_lock();
+            }
+
+            // FLEET ROSTER: Quick picker for all celestial bodies
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                let initial_idx = app
+                    .selected_node_id
+                    .and_then(|id| app.universe.nodes.iter().position(|n| n.id == id))
+                    .unwrap_or(0);
+                app.mode = AppMode::FleetList { selected_idx: initial_idx };
+            }
+
+            // INSPECTOR TABS: 1: Telemetry, 2: Notes, 3: Fleet
+            KeyCode::Char('1') => {
+                app.inspector_tab = InspectorTab::Telemetry;
+                app.set_status("Inspector Tab: [1] Keperian Telemetry");
+            }
+            KeyCode::Char('2') => {
+                app.inspector_tab = InspectorTab::Notes;
+                app.set_status("Inspector Tab: [2] Mission Directives / Notes");
+            }
+            KeyCode::Char('3') => {
+                app.inspector_tab = InspectorTab::Fleet;
+                app.set_status("Inspector Tab: [3] Fleet Overview");
+            }
+
+            // SIMULATION PAUSE
             KeyCode::Char(' ') => {
                 app.physics_config.paused = !app.physics_config.paused;
                 app.set_status(if app.physics_config.paused {
@@ -446,7 +654,7 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                 app.cycle_selected_node();
             }
 
-            // Orbital Astrodynamic Thruster Burns
+            // FLIGHT THRUSTER BURNS
             KeyCode::Char('w') | KeyCode::Char('W') => {
                 if let Some(id) = app.selected_node_id {
                     PhysicsEngine::apply_thruster_burn(&mut app.universe, id, 0.55);
@@ -467,7 +675,14 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                     app.set_status("🚀 RADIAL INWARD BURN (Rotating Orbital Ellipse)");
                 }
             }
-            // Toggle Spacetime grid / Velocity vectors
+            KeyCode::Char('d') | KeyCode::Char('D') => {
+                if let Some(id) = app.selected_node_id {
+                    PhysicsEngine::apply_radial_burn(&mut app.universe, id, 0.45);
+                    app.set_status("🚀 RADIAL OUTWARD BURN (Rotating Orbital Ellipse)");
+                }
+            }
+
+            // VISUAL TOGGLES
             KeyCode::Char('g') => {
                 app.physics_config.show_spacetime_grid = !app.physics_config.show_spacetime_grid;
                 app.set_status(if app.physics_config.show_spacetime_grid {
@@ -493,7 +708,7 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                 });
             }
 
-            // Relativistic events: Birth Black Hole & Supernova
+            // COSMIC PHENOMENA
             KeyCode::Char('b') => {
                 let bh_id = app.universe.add_node("Singularity Core", NodeType::BlackHole, app.camera_x, app.camera_y);
                 app.selected_node_id = Some(bh_id);
@@ -504,33 +719,25 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                 app.set_status("💥 SUPERNOVA GRAVITATIONAL WAVE RADIATED ACROSS THE SECTOR!");
             }
 
-            // Camera panning (Arrow keys or hjkl)
-            KeyCode::Left => {
+            // CAMERA PANNING (Disables Camera Lock if manually moved)
+            KeyCode::Left | KeyCode::Char('h') => {
+                app.camera_locked = false;
                 app.camera_x -= 6.0 / app.zoom;
             }
             KeyCode::Right => {
+                app.camera_locked = false;
                 app.camera_x += 6.0 / app.zoom;
             }
             KeyCode::Up => {
+                app.camera_locked = false;
                 app.camera_y += 6.0 / app.zoom;
             }
-            KeyCode::Down => {
-                app.camera_y -= 6.0 / app.zoom;
-            }
-            KeyCode::Char('h') => {
-                app.camera_x -= 6.0 / app.zoom;
-            }
-            KeyCode::Char('l') => {
-                app.camera_x += 6.0 / app.zoom;
-            }
-            KeyCode::Char('u') => {
-                app.camera_y += 6.0 / app.zoom;
-            }
-            KeyCode::Char('j') => {
+            KeyCode::Down | KeyCode::Char('j') => {
+                app.camera_locked = false;
                 app.camera_y -= 6.0 / app.zoom;
             }
 
-            // Zoom
+            // ZOOM
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 app.zoom = (app.zoom * 1.15).min(5.0);
             }
@@ -538,18 +745,17 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                 app.zoom = (app.zoom / 1.15).max(0.3);
             }
             KeyCode::Char('0') => {
+                app.camera_locked = false;
                 app.camera_x = 0.0;
                 app.camera_y = 0.0;
                 app.zoom = 1.0;
                 app.set_status("Camera centered on galactic origin (0, 0)");
             }
-            KeyCode::Char('f') => {
-                app.focus_camera_on_selected();
-            }
+
             KeyCode::Char('p') => {
                 app.toggle_pin_selected();
             }
-            KeyCode::Char('d') | KeyCode::Delete => {
+            KeyCode::Delete => {
                 app.delete_selected_node();
             }
             KeyCode::Char('t') => {
@@ -595,44 +801,18 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                 }
             }
 
-            // Physics tuning
-            KeyCode::Char('[') => {
-                app.physics_config.gravity_g = (app.physics_config.gravity_g - 10.0).max(0.0);
-                app.set_status(format!("Gravity G: {:.0}", app.physics_config.gravity_g));
-            }
-            KeyCode::Char(']') => {
-                app.physics_config.gravity_g += 10.0;
-                app.set_status(format!("Gravity G: {:.0}", app.physics_config.gravity_g));
-            }
-            KeyCode::Char('{') => {
-                app.physics_config.damping = (app.physics_config.damping - 0.01).max(0.90);
-                app.set_status(format!("Cosmic Drag: {:.3}", app.physics_config.damping));
-            }
-            KeyCode::Char('}') => {
-                app.physics_config.damping = (app.physics_config.damping + 0.005).min(1.0);
-                app.set_status(format!("Cosmic Drag: {:.3}", app.physics_config.damping));
-            }
-            KeyCode::Char('<') => {
-                app.physics_config.time_scale = (app.physics_config.time_scale - 0.2).max(0.2);
-                app.set_status(format!("Simulation Speed: {:.1}x", app.physics_config.time_scale));
-            }
-            KeyCode::Char('>') => {
-                app.physics_config.time_scale = (app.physics_config.time_scale + 0.2).min(3.0);
-                app.set_status(format!("Simulation Speed: {:.1}x", app.physics_config.time_scale));
-            }
-
-            // Presets
-            KeyCode::Char('1') => {
+            // FUNCTION KEYS FOR PRESETS
+            KeyCode::F(1) => {
                 app.universe = crate::model::Universe::preset_solar_system();
                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
                 app.set_status("Preset 1: Solar System Brainstorm loaded");
             }
-            KeyCode::Char('2') => {
+            KeyCode::F(2) => {
                 app.universe = crate::model::Universe::preset_three_body();
                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
                 app.set_status("Preset 2: Chaotic Three-Body Problem loaded");
             }
-            KeyCode::Char('3') => {
+            KeyCode::F(3) => {
                 app.universe = crate::model::Universe::preset_singularity_laboratory();
                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
                 app.set_status("Preset 3: Gargantua Singularity Laboratory loaded");
