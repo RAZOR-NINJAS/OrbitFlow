@@ -299,16 +299,28 @@ fn handle_key_event(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
                             11 => {
                                 app.universe = crate::model::Universe::preset_solar_system();
                                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
+                                app.camera_x = 0.0;
+                                app.camera_y = 0.0;
+                                app.zoom = 0.40;
+                                app.camera_locked = false;
                                 app.set_status("Preset 1: Solar System Brainstorm loaded");
                             }
                             12 => {
                                 app.universe = crate::model::Universe::preset_three_body();
                                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
+                                app.camera_x = 0.0;
+                                app.camera_y = 0.0;
+                                app.zoom = 0.40;
+                                app.camera_locked = false;
                                 app.set_status("Preset 2: Chaotic Three-Body Problem loaded");
                             }
                             13 => {
                                 app.universe = crate::model::Universe::preset_singularity_laboratory();
                                 app.selected_node_id = app.universe.nodes.first().map(|n| n.id);
+                                app.camera_x = 0.0;
+                                app.camera_y = 0.0;
+                                app.zoom = 0.40;
+                                app.camera_locked = false;
                                 app.set_status("Preset 3: Gargantua Singularity Laboratory loaded");
                             }
                             14 => app.cycle_theme(),

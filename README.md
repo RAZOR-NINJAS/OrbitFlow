@@ -86,13 +86,22 @@ OrbitFlow turns your brainstorming into an **interactive astrodynamics simulator
 ## 🛠️ Quickstart
 
 ```bash
-git clone https://github.com/vaibhav/orbitflow.git
-cd orbitflow
+git clone https://github.com/RAZOR-NINJAS/OrbitFlow.git
+cd OrbitFlow
 cargo run --release
 ```
+
+---
+
+## 💡 About This Repository
+
+I designed and built OrbitFlow on my local machine before publishing it on GitHub. Because the core physics simulation, Braille canvas rendering, and UI controls were developed and iterated locally prior to setting up this repository, the project is uploaded in a fully complete, working state on its initial release rather than starting from an empty skeleton commit.
+
+If you encounter any bugs, have feature suggestions, or want to contribute new gravitational presets, feel free to open an issue or pull request!
 
 ---
 
 ## 📜 License
 
 Licensed under the [MIT License](LICENSE).
+

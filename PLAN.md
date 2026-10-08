@@ -142,6 +142,9 @@ flowchart TD
 
 ---
 
-## 5. Next Steps
+## 5. Future Ideas & Backlog
 
-Review this plan and let me know if you would like any specific features added (e.g. sound effects via terminal audio bells, custom keybindings, or specific note templates) before we start writing the implementation.
+- [ ] Audio feedback / terminal bell on relativistic slingshots and supernova events
+- [ ] Gravitational N-body performance tuning with Barnes-Hut quadtree spatial partitioning
+- [ ] Export galaxy snapshots to SVG / vector diagram formats
+- [ ] Multi-galaxy constellation links and hyperlane connections

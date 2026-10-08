@@ -80,7 +80,7 @@ impl App {
             theme_idx: 0,
             camera_x: 0.0,
             camera_y: 0.0,
-            zoom: 1.0,
+            zoom: 0.40,
             camera_locked: false,
             selected_node_id,
             focused_panel: FocusedPanel::Canvas,

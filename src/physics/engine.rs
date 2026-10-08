@@ -34,10 +34,10 @@ pub struct PhysicsConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            gravity_g: 55.0,
-            repulsion_k: 450.0,
-            spring_k: 0.12,
-            damping: 0.985,
+            gravity_g: 45.0,
+            repulsion_k: 1400.0,
+            spring_k: 0.06,
+            damping: 0.9992, // Near-frictionless space: preserves orbital radii
             time_scale: 1.0,
             paused: false,
             show_spacetime_grid: true,
@@ -52,8 +52,8 @@ impl Default for PhysicsConfig {
 pub struct PhysicsEngine;
 
 impl PhysicsEngine {
-    pub const EPSILON_SQ: f64 = 25.0;
-    pub const MAX_VELOCITY: f64 = 10.0;
+    pub const EPSILON_SQ: f64 = 36.0;
+    pub const MAX_VELOCITY: f64 = 8.0;
 
     pub fn step(universe: &mut Universe, dt: f64, config: &mut PhysicsConfig) {
         if config.paused {
@@ -62,7 +62,8 @@ impl PhysicsEngine {
 
         config.frame_counter = config.frame_counter.wrapping_add(1);
         config.sim_time += dt * config.time_scale;
-        let effective_dt = (dt * config.time_scale).clamp(0.001, 0.05);
+        let effective_dt = (dt * config.time_scale).clamp(0.001, 0.04);
+        let dt_sim = effective_dt * 2.5;
 
         // 1. Reset forces
         for node in &mut universe.nodes {
@@ -90,14 +91,14 @@ impl PhysicsEngine {
                 let m2 = universe.nodes[j].mass;
                 let f_grav = (config.gravity_g * m1 * m2) / (dist_sq + Self::EPSILON_SQ);
 
-                // Coulomb Repulsion (Black holes don't repel, they pull relentlessly!)
+                // Anti-clumping repulsion buffer: gives nodes ~28-36 units of breathing room
                 let is_bh = universe.nodes[i].node_type == NodeType::BlackHole
                     || universe.nodes[j].node_type == NodeType::BlackHole;
 
-                let min_space = (universe.nodes[i].radius + universe.nodes[j].radius) * 4.0;
+                let min_space = (universe.nodes[i].radius + universe.nodes[j].radius) * 3.5 + 28.0;
                 let f_rep = if dist < min_space && !is_bh {
                     let overlap = min_space - dist;
-                    (config.repulsion_k * overlap) / (dist + 1.0)
+                    (config.repulsion_k * overlap * (1.0 + overlap * 0.1)) / (dist.powi(2) + 1.0)
                 } else {
                     0.0
                 };
@@ -153,8 +154,8 @@ impl PhysicsEngine {
             let ax = node.fx * inv_m;
             let ay = node.fy * inv_m;
 
-            node.vx = (node.vx + ax * effective_dt) * config.damping;
-            node.vy = (node.vy + ay * effective_dt) * config.damping;
+            node.vx = (node.vx + ax * dt_sim) * config.damping;
+            node.vy = (node.vy + ay * dt_sim) * config.damping;
 
             let speed = (node.vx * node.vx + node.vy * node.vy).sqrt();
             if speed > Self::MAX_VELOCITY {
@@ -163,8 +164,8 @@ impl PhysicsEngine {
                 node.vy *= factor;
             }
 
-            node.x += node.vx * effective_dt * 15.0;
-            node.y += node.vy * effective_dt * 15.0;
+            node.x += node.vx * dt_sim * 6.0;
+            node.y += node.vy * dt_sim * 6.0;
 
             if record_trail {
                 node.record_trail();
