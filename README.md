@@ -16,6 +16,10 @@
 [![Ratatui](https://img.shields.io/badge/ratatui-0.29-green.svg?style=flat-square)](https://ratatui.rs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
+<br/><br/>
+
+![OrbitFlow Relativistic Flight Deck](assets/flight-deck.png)
+
 </div>
 
 ---
@@ -70,6 +74,13 @@ OrbitFlow turns your brainstorming into an **interactive astrodynamics simulator
 | `d` / `Delete` | De-orbit & erase celestial thought |
 | `Ctrl + S` | Save galaxy state to `orbitflow.json` |
 | `m` | Export galaxy to structured Markdown (`orbitflow.md`) |
+
+<br/>
+
+<p align="center">
+  <img src="assets/mission-dispatch.png" alt="Mission Log Dispatch Modal" width="100%" />
+</p>
+
 
 ### 🌌 Galaxy Presets
 | Key | Action |
